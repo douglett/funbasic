@@ -137,14 +137,16 @@ struct Runtime {
 				expect("eol");
 				lpos++;
 			}
-			// else if (accept("match", "+") && require("=")) {
-			// 	if (accept("number") && getmem(name.type == Memory::NUM))
-			// 		getmem(name).num = stoi(last());
-			// 	else
-			// 		error("type error");
-			// 	expect("eol");
-			// 	lpos++;
-			// }
+			else if (accept("match", "+") && expect("match", "=")) {
+				if (accept("number") && getmem(name).type == Memory::NUM)
+					getmem(name).num += stoi(last());
+				else if (accept("identifier") && getmem(name).type == Memory::NUM && getmem(last()).type == Memory::NUM)
+					getmem(name).num += getmem(last()).num;
+				else
+					error("type error");
+				expect("eol");
+				lpos++;
+			}
 			else
 				error("operator error");
 		}
@@ -243,11 +245,12 @@ struct Runtime {
 
 
 int main() {
-	printf("hello world\n");
+	printf("funbasic parser online!\n\n");
 
 	Tokenizer tok;
 	tok.parsef("test.asm");
 	tok.show();
+	printf("\n");
 
 	Runtime run;
 	run.tok = tok;
