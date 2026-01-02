@@ -137,13 +137,20 @@ struct Runtime {
 				expect("eol");
 				lpos++;
 			}
-			else if (accept("match", "+") && expect("match", "=")) {
+			else if (accept("match", "+") || accept("match", "-") || accept("match", "*") || accept("match", "/")) {
+				auto& op = last();
+				expect("match", "=");
+				int num = 0;
 				if (accept("number") && getmem(name).type == Memory::NUM)
-					getmem(name).num += stoi(last());
+					num = stoi(last());
 				else if (accept("identifier") && getmem(name).type == Memory::NUM && getmem(last()).type == Memory::NUM)
-					getmem(name).num += getmem(last()).num;
+					num = getmem(last()).num;
 				else
 					error("type error");
+				if      (op == "+")  getmem(name).num += num;
+				else if (op == "-")  getmem(name).num -= num;
+				else if (op == "*")  getmem(name).num *= num;
+				else if (op == "/")  getmem(name).num /= num;
 				expect("eol");
 				lpos++;
 			}

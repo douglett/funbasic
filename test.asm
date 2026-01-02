@@ -15,3 +15,13 @@ let b = "a(12) + a ="
 let a = 12
 let a += a
 print b a
+
+let b = "a(12) * 2 ="
+let a = 12
+let a *= 2
+print b a
+
+let b = "a(12) * a ="
+let a = 12
+let a *= a
+print b a
