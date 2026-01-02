@@ -85,7 +85,7 @@ struct Tokenizer {
 struct Runtime {
 	struct Memory {
 		enum MEMTYPE { NUM = 0, STRING };
-		MEMTYPE type; int i; string s;
+		MEMTYPE type; int num; string str;
 	};
 	Tokenizer tok;
 	size_t lpos = 0;
@@ -123,18 +123,26 @@ struct Runtime {
 			lpos++;
 		}
 		// set variable
-		// else if (cmd == "let") {
-		// 	expect("identifier", 1);
-		// 	expect("match", 2, "=");
-		// 	expect("eol", 4);
-		// }
+		else if (cmd == "let") {
+			expect("identifier", 1);
+			expect("match", 2, "=");
+			expect("eol", 4);
+			auto& name = tokens().at(1);
+			if (accept("number", 3) && getmem(name).type == Memory::NUM)
+				getmem(name).num = stoi(tokens().at(3));
+			else if (accept("string", 3) && getmem(name).type == Memory::STRING)
+				getmem(name).str = stripliteral(tokens().at(3));
+			else
+				error("type error");
+			lpos++;
+		}
 		// print variable to console
 		else if (cmd == "print") {
 			for (size_t i = 1; i < tokens().size(); i++) {
 				auto& var = getmem(tokens().at(i));
 				switch (var.type) {
-					case Memory::NUM:     printf("%d ", var.i);  break;
-					case Memory::STRING:  printf("%s ", var.s.c_str());  break;
+					case Memory::NUM:     printf("%d ", var.num);  break;
+					case Memory::STRING:  printf("%s ", var.str.c_str());  break;
 				}
 			}
 			printf("\n");
