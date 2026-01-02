@@ -157,6 +157,12 @@ struct Runtime {
 			else
 				error("operator error");
 		}
+		// jump
+		else if (cmd == "goto") {
+			expect("identifier");
+			auto& label = last();
+			jumpto(label);
+		}
 		// conditional
 		else if (cmd == "if") {
 			expect("identifier");
@@ -204,6 +210,11 @@ struct Runtime {
 		return 0;
 	}
 
+	int error(const string& msg, int pos = -1) {
+		throw runtime_error(msg + " (line " + to_string(lpos + 1) + (pos > -1 ? ", " + to_string(pos) : "") + ")");
+	}
+
+	// --- Runtime State ---
 	int jumpto(const string& label) {
 		for (size_t i = 0; i < tok.lines.size(); i++) {
 			auto& tokens = tok.lines[i].tokens;
@@ -212,11 +223,6 @@ struct Runtime {
 		}
 		return error("goto unknown label: [" + label + "]");
 	}
-
-	int error(const string& msg, int pos = -1) {
-		throw runtime_error(msg + " (line " + to_string(lpos + 1) + (pos > -1 ? ", " + to_string(pos) : "") + ")");
-	}
-
 	Memory& getmem(const string& name) {
 		if (!memory.count(name))
 			error("unknown variable name [" + name + "]");
