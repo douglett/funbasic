@@ -91,66 +91,92 @@ struct Runtime {
 	size_t lpos = 0;
 	map<string, Memory> memory;
 
+	// --- Parsing ---
 	int run() {
-		int err = 0;
 		lpos = 0;
-		while (lpos < tok.lines.size()) {
-			err = runline();
-			if (err != 0)
-				break;
-		}
-		return err;
+		while (lpos < tok.lines.size())
+			runline();
+		return 0;
 	}
 
 	int runline() {
 		string cmd = tokens().size() ? tokens()[0] : "noop";
 		string errormsg;
 
-		// parse line
+		// no-operation
 		if (cmd == "noop")
 			lpos++;
+		// dim new variable
 		else if (cmd == "dim") {
 			expect("identifier", 1);
 			expect("match", 2, "=");
 			expect("eol", 4);
+			auto& name = tokens().at(1);
+			if (memory.count(name))
+				error("redim of " + name);
 			if (accept("number", 3))
-				memory[tokens().at(1)] = { Memory::NUM, stoi(tokens().at(3)) };
+				memory[name] = { Memory::NUM, stoi(tokens().at(3)) };
 			else if (accept("string", 3))
-				memory[tokens().at(1)] = { Memory::STRING, 0, stripliteral(tokens().at(3)) };
+				memory[name] = { Memory::STRING, 0, stripliteral(tokens().at(3)) };
 			else
-				throw runtime_error("type error");
+				error("type error");
 			lpos++;
 		}
+		// set variable
+		// else if (cmd == "let") {
+		// 	expect("identifier", 1);
+		// 	expect("match", 2, "=");
+		// 	expect("eol", 4);
+		// }
+		// print variable to console
+		else if (cmd == "print") {
+			for (size_t i = 1; i < tokens().size(); i++) {
+				auto& var = getmem(tokens().at(i));
+				switch (var.type) {
+					case Memory::NUM:     printf("%d ", var.i);  break;
+					case Memory::STRING:  printf("%s ", var.s.c_str());  break;
+				}
+			}
+			printf("\n");
+			lpos++;
+		}
+		// unknown
 		else
-			errormsg = "unknown command [" + cmd + "]";
-		
-		// handle errors
-		if (errormsg.length())
-			fprintf(stderr, "Error: %s\n", errormsg.c_str()),
-			fprintf(stderr, "	Line %d\n", (int)lpos + 1);
-		return errormsg.length() ? 1 : 0;
+			error("unknown command [" + cmd + "]");
+
+		// OK
+		return 0;
 	}
 
+	int error(const string& msg, int pos = -1) {
+		throw runtime_error(msg + " (line " + to_string(lpos + 1) + (pos > -1 ? ", " + to_string(pos) : "") + ")");
+	}
+
+	Memory& getmem(const string& name) {
+		if (!memory.count(name))
+			error("unknown variable name [" + name + "]");
+		return memory.at(name);
+	}
+
+	// --- Parsing Helpers ---
 	const Tokenizer::TokenLine& line() {
 		if (lpos >= tok.lines.size())
-			throw runtime_error("line out-of-range. line " + to_string(lpos));
+			error("line out-of-range");
 		return tok.lines[lpos];
 	}
 	const vector<string>& tokens() {
 		return line().tokens;
 	}
-
 	int expect(const string& cmd, size_t pos, const string& match = "") {
 		if (!accept(cmd, pos, match))
-			throw runtime_error("expected " + cmd
-				+ "(line " + to_string(lpos + 1) + ", pos " + to_string(pos) + ")");
+			error("expected " + cmd);
 		return 1;
 	}
 	int accept(const string& cmd, size_t pos, const string& match = "") {
 		if (pos >= tokens().size()) {
 			if (cmd == "eol")
 				return 1;
-			throw runtime_error("token out-of-range. line " + to_string(lpos) + ", pos " + to_string(pos));
+			error("token out-of-range");
 		}
 		auto& tok = tokens().at(pos);
 		if (cmd == "identifier")
@@ -162,10 +188,11 @@ struct Runtime {
 		else if (cmd == "string")
 			return isstrliteral(tok);
 		else
-			throw runtime_error("unknown accept command [" + cmd + "]");
+			error("unknown accept command [" + cmd + "]");
 		return 0;
 	}
 
+	// --- Token Helpers ---
 	static int isidentifier(const string& s) {
 		if (s.length() == 0)  return 0;
 		if (!Tokenizer::isalphac(s[0])) return 0;
@@ -193,7 +220,7 @@ int main() {
 	printf("hello world\n");
 
 	Tokenizer tok;
-	tok.parsef("example.asm");
+	tok.parsef("test.asm");
 	tok.show();
 
 	Runtime run;

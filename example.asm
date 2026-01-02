@@ -14,7 +14,7 @@
 
 dim a = 123
 dim b = "hello world"
-; dim c = []
+dim c = []
 
 let a = num(b)
 let b = string(a)
