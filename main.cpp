@@ -88,7 +88,7 @@ struct Runtime {
 		MEMTYPE type; int num; string str;
 	};
 	Tokenizer tok;
-	size_t lpos = 0;
+	size_t lpos = 0, pos = 0;
 	map<string, Memory> memory;
 
 	// --- Parsing ---
@@ -102,40 +102,41 @@ struct Runtime {
 	int runline() {
 		string cmd = tokens().size() ? tokens()[0] : "noop";
 		string errormsg;
+		pos = 1;
 
 		// no-operation
 		if (cmd == "noop")
 			lpos++;
 		// dim new variable
 		else if (cmd == "dim") {
-			expect("identifier", 1);
-			expect("match", 2, "=");
-			expect("eol", 4);
-			auto& name = tokens().at(1);
+			expect("identifier");
+			auto name = last();
+			expect("match", "=");
 			if (memory.count(name))
 				error("redim of " + name);
-			if (accept("number", 3))
-				memory[name] = { Memory::NUM, stoi(tokens().at(3)) };
-			else if (accept("string", 3))
-				memory[name] = { Memory::STRING, 0, stripliteral(tokens().at(3)) };
+			if (accept("number"))
+				memory[name] = { Memory::NUM, stoi(last()) };
+			else if (accept("string"))
+				memory[name] = { Memory::STRING, 0, stripliteral(last()) };
 			else
 				error("type error");
+			expect("eol");
 			lpos++;
 		}
 		// set variable
-		else if (cmd == "let") {
-			expect("identifier", 1);
-			expect("match", 2, "=");
-			expect("eol", 4);
-			auto& name = tokens().at(1);
-			if (accept("number", 3) && getmem(name).type == Memory::NUM)
-				getmem(name).num = stoi(tokens().at(3));
-			else if (accept("string", 3) && getmem(name).type == Memory::STRING)
-				getmem(name).str = stripliteral(tokens().at(3));
-			else
-				error("type error");
-			lpos++;
-		}
+		// else if (cmd == "let") {
+		// 	expect("identifier", 1);
+		// 	auto& name = last();
+		// 	if (accept("match", 2, "=");
+		// 	expect("eol", 4);
+		// 	if (accept("number", 3) && getmem(name).type == Memory::NUM)
+		// 		getmem(name).num = stoi(tokens().at(3));
+		// 	else if (accept("string", 3) && getmem(name).type == Memory::STRING)
+		// 		getmem(name).str = stripliteral(tokens().at(3));
+		// 	else
+		// 		error("type error");
+		// 	lpos++;
+		// }
 		// print variable to console
 		else if (cmd == "print") {
 			for (size_t i = 1; i < tokens().size(); i++) {
@@ -175,12 +176,12 @@ struct Runtime {
 	const vector<string>& tokens() {
 		return line().tokens;
 	}
-	int expect(const string& cmd, size_t pos, const string& match = "") {
-		if (!accept(cmd, pos, match))
+	int expect(const string& cmd, const string& match = "") {
+		if (!accept(cmd, match))
 			error("expected " + cmd);
 		return 1;
 	}
-	int accept(const string& cmd, size_t pos, const string& match = "") {
+	int accept(const string& cmd, const string& match = "") {
 		if (pos >= tokens().size()) {
 			if (cmd == "eol")
 				return 1;
@@ -188,16 +189,22 @@ struct Runtime {
 		}
 		auto& tok = tokens().at(pos);
 		if (cmd == "identifier")
-			return isidentifier(tok);
+			return isidentifier(tok) && ++pos;
 		else if (cmd == "match")
-			return tok == match;
+			return tok == match && ++pos;
 		else if (cmd == "number")
-			return isnumber(tok);
+			return isnumber(tok) && ++pos;
 		else if (cmd == "string")
-			return isstrliteral(tok);
+			return isstrliteral(tok) && ++pos;
 		else
 			error("unknown accept command [" + cmd + "]");
 		return 0;
+	}
+	const string& last() {
+		static const string EOL = "<eol>";
+		if (pos - 1 >= tokens().size())
+			return EOL;
+		return tokens().at(pos - 1);
 	}
 
 	// --- Token Helpers ---
