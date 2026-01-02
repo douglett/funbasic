@@ -124,19 +124,30 @@ struct Runtime {
 			lpos++;
 		}
 		// set variable
-		// else if (cmd == "let") {
-		// 	expect("identifier", 1);
-		// 	auto& name = last();
-		// 	if (accept("match", 2, "=");
-		// 	expect("eol", 4);
-		// 	if (accept("number", 3) && getmem(name).type == Memory::NUM)
-		// 		getmem(name).num = stoi(tokens().at(3));
-		// 	else if (accept("string", 3) && getmem(name).type == Memory::STRING)
-		// 		getmem(name).str = stripliteral(tokens().at(3));
-		// 	else
-		// 		error("type error");
-		// 	lpos++;
-		// }
+		else if (cmd == "let") {
+			expect("identifier");
+			auto& name = last();
+			if (accept("match", "=")) {
+				if (accept("number") && getmem(name).type == Memory::NUM)
+					getmem(name).num = stoi(last());
+				else if (accept("string") && getmem(name).type == Memory::STRING)
+					getmem(name).str = stripliteral(last());
+				else
+					error("type error");
+				expect("eol");
+				lpos++;
+			}
+			// else if (accept("match", "+") && require("=")) {
+			// 	if (accept("number") && getmem(name.type == Memory::NUM))
+			// 		getmem(name).num = stoi(last());
+			// 	else
+			// 		error("type error");
+			// 	expect("eol");
+			// 	lpos++;
+			// }
+			else
+				error("operator error");
+		}
 		// print variable to console
 		else if (cmd == "print") {
 			for (size_t i = 1; i < tokens().size(); i++) {
