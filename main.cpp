@@ -157,24 +157,60 @@ struct Runtime {
 			else
 				error("operator error");
 		}
+		// conditional
+		else if (cmd == "if") {
+			expect("identifier");
+			auto& name = last();
+			if (getmem(name).type != Memory::NUM)
+				error("type error");
+			expect("match", "then");
+			expect("match", "goto");
+			expect("identifier");
+			auto& label = last();
+			if (getmem(name).num)
+				jumpto(label);
+			else
+				lpos++;
+		}
 		// print variable to console
 		else if (cmd == "print") {
 			for (size_t i = 1; i < tokens().size(); i++) {
-				auto& var = getmem(tokens().at(i));
-				switch (var.type) {
-					case Memory::NUM:     printf("%d ", var.num);  break;
-					case Memory::STRING:  printf("%s ", var.str.c_str());  break;
+				auto& tok = tokens().at(i);
+				if (isnumber(tok))
+					printf("%d ", stoi(tok));
+				else if (isstrliteral(tok))
+					printf("%s ", stripliteral(tok).c_str());
+				else if (isidentifier(tok)) {
+					auto& var = getmem(tok);
+					switch (var.type) {
+						case Memory::NUM:     printf("%d ", var.num);  break;
+						case Memory::STRING:  printf("%s ", var.str.c_str());  break;
+					}
 				}
+				else
+					error("bad argument");
 			}
 			printf("\n");
 			lpos++;
 		}
+		// label
+		else if (isidentifier(cmd) && accept("match", ":"))
+			lpos++;  // also noop
 		// unknown
 		else
 			error("unknown command [" + cmd + "]");
 
 		// OK
 		return 0;
+	}
+
+	int jumpto(const string& label) {
+		for (size_t i = 0; i < tok.lines.size(); i++) {
+			auto& tokens = tok.lines[i].tokens;
+			if (tokens.size() == 2 && tokens.at(0) == label && tokens.at(1) == ":")
+				return lpos = i;
+		}
+		return error("goto unknown label: [" + label + "]");
 	}
 
 	int error(const string& msg, int pos = -1) {
