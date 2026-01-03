@@ -9,8 +9,8 @@ int main() {
 
 	Tokenizer tok;
 	// tok.parsef("asm/test.asm");
-	tok.parsef("asm/maths.asm");
-	// tok.parsef("asm/doug1.asm");
+	// tok.parsef("asm/maths.asm");
+	tok.parsef("asm/doug1.asm");
 	tok.show();
 	printf("\n");
 

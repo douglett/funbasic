@@ -83,6 +83,16 @@ struct Runtime : TokenHelpers {
 				arg = { Memory::NUM, strtoint(last()) };
 			else if (accept("$string"))
 				arg = { Memory::STR, 0, stripliteral(last()) };
+			else if (accept("$identifier (")) {
+				auto conversion = last(0);
+				expect("$identifier");
+				auto var2 = getmem(last());
+				expect(")");
+				if (conversion == "toint" && var2.type == Memory::STR)
+					arg = { Memory::NUM, strtoint(var2.str, 0) };
+				else
+					error("bad conversion"); 
+			}
 			else if (accept("$identifier"))
 				arg = getmem(last());
 			else
@@ -218,6 +228,10 @@ struct Runtime : TokenHelpers {
 		try { return stoi(str); }
 		catch (invalid_argument& e) { return error("strtoint: bad argument [" + str + "]"); }
 	}
+	int strtoint(const string& str, int defaultnum) {
+		try { return stoi(str); }
+		catch (invalid_argument& e) { return defaultnum; }
+	}
 	string memtostr(const Memory& mem) {
 		switch (mem.type) {
 			case Memory::STR:  return mem.str;
@@ -237,30 +251,33 @@ struct Runtime : TokenHelpers {
 		if (cmdlist.size() == 0)
 			error("command list empty [" + cmd + "]");
 		for (auto& cm : cmdlist) {
-			if (!acceptone(cm))
+			if (!matchnext(cm))
 				return pos = p, 0;
+			pos++;
 			lastlist.push_back(cm == "$eol" ? "<eol>" : tokens().at(pos - 1));
 		}
 		return 1;
 	}
-	int acceptone(const string& cmd) {
-		if (pos >= tokens().size()) {
-			if (cmd == "$eol")
-				return 1;
-			error("token out-of-range");
-		}
+	int matchnext(const string& cmd) {
+		if (pos >= tokens().size())
+			return cmd == "$eol" ? 1 : 0;
 		auto& tok = tokens().at(pos);
 		if (cmd == "$identifier")
-			return isidentifier(tok) && ++pos;
+			return isidentifier(tok);
 		else if (cmd == "$number")
-			return isnumber(tok) && ++pos;
+			return isnumber(tok);
 		else if (cmd == "$string")
-			return isstrliteral(tok) && ++pos;
+			return isstrliteral(tok);
 		else if (cmd == tok)
-			return ++pos;
+			return 1;
 		return 0;
 	}
 	string last() {
 		return joinvs(lastlist, "");
+	}
+	string last(size_t i) {
+		if (i >= lastlist.size())
+			error("last out-of-range");
+		return lastlist.at(i);
 	}
 };
