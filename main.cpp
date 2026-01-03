@@ -84,7 +84,7 @@ struct Tokenizer {
 
 struct Runtime {
 	struct Memory {
-		enum MEMTYPE { NUM = 0, STRING };
+		enum MEMTYPE { NUM = 0, STR };
 		MEMTYPE type; int num; string str;
 	};
 	Tokenizer tok;
@@ -135,7 +135,7 @@ struct Runtime {
 			if (accept("number"))
 				memory[name] = { Memory::NUM, stoi(last()) };
 			else if (accept("string"))
-				memory[name] = { Memory::STRING, 0, stripliteral(last()) };
+				memory[name] = { Memory::STR, 0, stripliteral(last()) };
 			else
 				error("type error");
 			expect("eol");
@@ -148,8 +148,13 @@ struct Runtime {
 			if (accept("match", "=")) {
 				if (accept("number") && getmem(name).type == Memory::NUM)
 					getmem(name).num = stoi(last());
-				else if (accept("string") && getmem(name).type == Memory::STRING)
+				else if (accept("string") && getmem(name).type == Memory::STR)
 					getmem(name).str = stripliteral(last());
+				else if (accept("identifier") && getmem(name).type == getmem(last()).type)
+					switch (getmem(name).type) {
+						case Memory::NUM:  getmem(name).num = getmem(last()).num;  break;
+						case Memory::STR:  getmem(name).str = getmem(last()).str;  break;
+					}
 				else
 					error("type error");
 				expect("eol");
@@ -198,7 +203,7 @@ struct Runtime {
 			else
 				lpos++;
 		}
-		// print variable to console
+		// print variable to terminal
 		else if (cmd == "print") {
 			for (size_t i = 1; i < tokens().size(); i++) {
 				auto& tok = tokens().at(i);
@@ -209,14 +214,24 @@ struct Runtime {
 				else if (isidentifier(tok)) {
 					auto& var = getmem(tok);
 					switch (var.type) {
-						case Memory::NUM:     printf("%d ", var.num);  break;
-						case Memory::STRING:  printf("%s ", var.str.c_str());  break;
+						case Memory::NUM:  printf("%d ", var.num);  break;
+						case Memory::STR:  printf("%s ", var.str.c_str());  break;
 					}
 				}
 				else
 					error("bad argument");
 			}
 			printf("\n");
+			lpos++;
+		}
+		// get input from terminal
+		else if (cmd == "input") {
+			expect("identifier");
+			auto& name = last();
+			if (getmem(name).type != Memory::STR)
+				error("type error");
+			expect("eol");
+			getline(cin, getmem(name).str);
 			lpos++;
 		}
 		// label
@@ -322,7 +337,7 @@ int main() {
 	printf("funbasic parser online!\n\n");
 
 	Tokenizer tok;
-	tok.parsef("test.asm");
+	tok.parsef("doug1.asm");
 	tok.show();
 	printf("\n");
 
