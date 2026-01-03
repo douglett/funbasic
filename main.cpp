@@ -88,6 +88,7 @@ struct Runtime {
 		MEMTYPE type; int num; string str;
 	};
 	Tokenizer tok;
+	string modulename;
 	size_t lpos = 0, pos = 0;
 	map<string, Memory> memory;
 
@@ -104,9 +105,23 @@ struct Runtime {
 		string errormsg;
 		pos = 1;
 
+		if (cmd != "noop" && cmd != "module" && modulename.size() == 0)
+			error("module most have a name");
+
 		// no-operation
-		if (cmd == "noop")
+		if (cmd == "noop") {
+			expect("eol");
 			lpos++;
+		}
+		// module name
+		else if (cmd == "module") {
+			if (modulename.length())
+				error("module name redefined");
+			expect("identifier");
+			modulename = last();
+			expect("eol");
+			lpos++;
+		}
 		// dim new variable
 		else if (cmd == "dim") {
 			expect("identifier");
@@ -161,6 +176,7 @@ struct Runtime {
 		else if (cmd == "goto") {
 			expect("identifier");
 			auto& label = last();
+			expect("eol");
 			jumpto(label);
 		}
 		// conditional
@@ -172,6 +188,7 @@ struct Runtime {
 			expect("match", "then");
 			expect("match", "goto");
 			expect("identifier");
+			expect("eol");
 			auto& label = last();
 			if (getmem(name).num)
 				jumpto(label);
@@ -200,8 +217,10 @@ struct Runtime {
 			lpos++;
 		}
 		// label
-		else if (isidentifier(cmd) && accept("match", ":"))
+		else if (isidentifier(cmd) && accept("match", ":")) {
+			expect("eol");
 			lpos++;  // also noop
+		}
 		// unknown
 		else
 			error("unknown command [" + cmd + "]");
