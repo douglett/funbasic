@@ -145,43 +145,43 @@ struct Runtime {
 		}
 		// set variable
 		else if (cmd == "let") {
+			// variable
 			expect("$identifier");
 			auto name = last();
-
-			if (accept("=")) {
-				if (accept("$number") && getmem(name).type == Memory::NUM)
-					getmem(name).num = strtoint(last());
-				else if (accept("$string") && getmem(name).type == Memory::STR)
-					getmem(name).str = stripliteral(last());
-				else if (accept("$identifier") && getmem(name).type == getmem(last()).type)
-					switch (getmem(name).type) {
-						case Memory::NUM:  getmem(name).num = getmem(last()).num;  break;
-						case Memory::STR:  getmem(name).str = getmem(last()).str;  break;
-					}
-				else
-					error("type error");
-				expect("$eol");
-				lpos++;
-			}
-			else if (accept("+") || accept("-") || accept("*") || accept("/")) {
-				auto op = last();
-				expect("=");
-				int num = 0;
-				if (accept("$number") && getmem(name).type == Memory::NUM)
-					num = strtoint(last());
-				else if (accept("$identifier") && getmem(name).type == Memory::NUM && getmem(last()).type == Memory::NUM)
-					num = getmem(last()).num;
-				else
-					error("type error");
-				if      (op == "+")  getmem(name).num += num;
-				else if (op == "-")  getmem(name).num -= num;
-				else if (op == "*")  getmem(name).num *= num;
-				else if (op == "/")  getmem(name).num /= num;
-				expect("$eol");
-				lpos++;
-			}
+			auto& var = getmem(name);
+			// operator
+			poperator();
+			auto op = last();
+			// argument
+			Memory arg;
+			if (accept("$number"))
+				arg = { Memory::NUM, strtoint(last()) };
+			else if (accept("$string"))
+				arg = { Memory::STR, 0, stripliteral(last()) };
+			else if (accept("$identifier"))
+				arg = getmem(last());
 			else
-				error("operator error");
+				error("expected argument");
+			if (var.type != arg.type)
+				error("type error");
+			// operation
+			switch (var.type) {
+				case Memory::NUM:
+					if      (op ==  "=")  var.num  = arg.num;
+					else if (op == "+=")  var.num += arg.num;
+					else if (op == "-=")  var.num -= arg.num;
+					else if (op == "*=")  var.num *= arg.num;
+					else if (op == "/=")  var.num /= arg.num;
+					else    error("operator invalid on number");
+					break;
+				case Memory::STR:
+					if   (op == "=")  var.str = arg.str;
+					else error("operator invalid on string");
+					break;
+			}
+			// end line
+			expect("$eol");
+			lpos++;
 		}
 		// jump
 		else if (cmd == "goto") {
@@ -250,6 +250,14 @@ struct Runtime {
 		return 0;
 	}
 
+	int poperator() {
+		vector<string> operators = { "=", "+ =", "- =", "* =", "/ =" };
+		for (auto op : operators)
+			if (accept(op))
+				return 1;
+		return error("expected operator");
+	}
+
 	int error(const string& msg) const {
 		throw runtime_error(msg + " (line " + to_string(lpos + 1) + ", " + to_string(pos) + ")");
 	}
@@ -284,6 +292,13 @@ struct Runtime {
 	int strtoint(const string& str) {
 		try { return stoi(str); }
 		catch (invalid_argument& e) { return error("strtoint: bad argument [" + str + "]"); }
+	}
+	string memtostr(const Memory& mem) {
+		switch (mem.type) {
+			case Memory::STR:  return mem.str;
+			default:
+			case Memory::NUM:  return to_string(mem.num);
+		}
 	}
 	int expect(const string& cmd) {
 		if (!accept(cmd))
@@ -369,8 +384,8 @@ int main() {
 
 	Tokenizer tok;
 	// tok.parsef("test.asm");
-	// tok.parsef("maths.asm");
-	tok.parsef("doug1.asm");
+	tok.parsef("maths.asm");
+	// tok.parsef("doug1.asm");
 	tok.show();
 	printf("\n");
 
