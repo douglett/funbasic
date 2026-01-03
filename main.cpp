@@ -135,7 +135,7 @@ struct Runtime {
 			if (memory.count(name))
 				error("redim of " + name);
 			if (accept("$number"))
-				memory[name] = { Memory::NUM, stoi(last()) };
+				memory[name] = { Memory::NUM, strtoint(last()) };
 			else if (accept("$string"))
 				memory[name] = { Memory::STR, 0, stripliteral(last()) };
 			else
@@ -146,11 +146,11 @@ struct Runtime {
 		// set variable
 		else if (cmd == "let") {
 			expect("$identifier");
-			auto& name = last();
+			auto name = last();
 
 			if (accept("=")) {
 				if (accept("$number") && getmem(name).type == Memory::NUM)
-					getmem(name).num = stoi(last());
+					getmem(name).num = strtoint(last());
 				else if (accept("$string") && getmem(name).type == Memory::STR)
 					getmem(name).str = stripliteral(last());
 				else if (accept("$identifier") && getmem(name).type == getmem(last()).type)
@@ -164,11 +164,11 @@ struct Runtime {
 				lpos++;
 			}
 			else if (accept("+") || accept("-") || accept("*") || accept("/")) {
-				auto& op = last();
+				auto op = last();
 				expect("=");
 				int num = 0;
 				if (accept("$number") && getmem(name).type == Memory::NUM)
-					num = stoi(last());
+					num = strtoint(last());
 				else if (accept("$identifier") && getmem(name).type == Memory::NUM && getmem(last()).type == Memory::NUM)
 					num = getmem(last()).num;
 				else
@@ -186,20 +186,20 @@ struct Runtime {
 		// jump
 		else if (cmd == "goto") {
 			expect("$identifier");
-			auto& label = last();
+			auto label = last();
 			expect("$eol");
 			jumpto(label);
 		}
 		// conditional
 		else if (cmd == "if") {
 			expect("$identifier");
-			auto& name = last();
+			auto name = last();
 			if (getmem(name).type != Memory::NUM)
 				error("type error");
 			expect("then");
 			expect("goto");
 			expect("$identifier");
-			auto& label = last();
+			auto label = last();
 			expect("$eol");
 			if (getmem(name).num)
 				jumpto(label);
@@ -211,7 +211,7 @@ struct Runtime {
 			for (size_t i = 1; i < tokens().size(); i++) {
 				auto& tok = tokens().at(i);
 				if (isnumber(tok))
-					printf("%d ", stoi(tok));
+					printf("%d ", strtoint(tok));
 				else if (isstrliteral(tok))
 					printf("%s ", stripliteral(tok).c_str());
 				else if (isidentifier(tok)) {
@@ -230,7 +230,7 @@ struct Runtime {
 		// get input from terminal
 		else if (cmd == "input") {
 			expect("$identifier");
-			auto& name = last();
+			auto name = last();
 			if (getmem(name).type != Memory::STR)
 				error("type error");
 			expect("$eol");
@@ -281,12 +281,29 @@ struct Runtime {
 	const vector<string>& tokens() const {
 		return line().tokens;
 	}
+	int strtoint(const string& str) {
+		try { return stoi(str); }
+		catch (invalid_argument& e) { return error("strtoint: bad argument [" + str + "]"); }
+	}
 	int expect(const string& cmd) {
 		if (!accept(cmd))
 			error("expected [" + cmd + "]");
 		return 1;
 	}
 	int accept(const string& cmd) {
+		lastlist = {};
+		int p = pos;
+		auto cmdlist = splitws(cmd);
+		if (cmdlist.size() == 0)
+			error("command list empty [" + cmd + "]");
+		for (auto& cm : cmdlist) {
+			if (!acceptone(cm))
+				return pos = p, 0;
+			lastlist.push_back(cm == "$eol" ? "<eol>" : tokens().at(pos - 1));
+		}
+		return 1;
+	}
+	int acceptone(const string& cmd) {
 		if (pos >= tokens().size()) {
 			if (cmd == "$eol")
 				return 1;
@@ -303,30 +320,8 @@ struct Runtime {
 			return ++pos;
 		return 0;
 	}
-	const string& last() const {
-		static const string EOL = "<eol>";
-		if (pos - 1 >= tokens().size())
-			return EOL;
-		return tokens().at(pos - 1);
-	}
-	int acceptm(const string& cmdlist) {
-		lastlist = {};
-		string cmd;
-		stringstream ss(cmdlist);
-		while (ss >> cmd) {
-			if (!accept(cmd))
-				return 0;
-			lastlist.push_back(last());
-		}
-		if (lastlist.size() == 0)
-			error("command list empty [" + cmdlist + "]");
-		return 1;
-	}
-	string lastm() const {
-		string s;
-		for (auto& tok : lastlist)
-			s += tok;
-		return s;
+	string last() {
+		return joinvs(lastlist, "");
 	}
 
 	// --- Token Helpers ---
@@ -373,7 +368,9 @@ int main() {
 	printf("funbasic parser online!\n\n");
 
 	Tokenizer tok;
-	tok.parsef("maths.asm");
+	// tok.parsef("test.asm");
+	// tok.parsef("maths.asm");
+	tok.parsef("doug1.asm");
 	tok.show();
 	printf("\n");
 
