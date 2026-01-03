@@ -383,9 +383,9 @@ int main() {
 	printf("funbasic parser online!\n\n");
 
 	Tokenizer tok;
-	// tok.parsef("test.asm");
-	tok.parsef("maths.asm");
-	// tok.parsef("doug1.asm");
+	// tok.parsef("asm/test.asm");
+	tok.parsef("asm/maths.asm");
+	// tok.parsef("asm/doug1.asm");
 	tok.show();
 	printf("\n");
 
