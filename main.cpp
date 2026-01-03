@@ -90,6 +90,7 @@ struct Runtime {
 	Tokenizer tok;
 	string modulename;
 	size_t lpos = 0, pos = 0;
+	int flagw_modulename = 0;
 	map<string, Memory> memory;
 
 	// --- Parsing ---
@@ -105,8 +106,10 @@ struct Runtime {
 		string errormsg;
 		pos = 1;
 
-		if (cmd != "noop" && cmd != "module" && modulename.size() == 0)
-			error("module most have a name");
+		if (cmd != "noop" && cmd != "module" && modulename.size() == 0 && !flagw_modulename) {
+			warn("module name expected on first line");
+			flagw_modulename = 1;
+		}
 
 		// no-operation
 		if (cmd == "noop") {
@@ -229,8 +232,11 @@ struct Runtime {
 		return 0;
 	}
 
-	int error(const string& msg, int pos = -1) {
-		throw runtime_error(msg + " (line " + to_string(lpos + 1) + (pos > -1 ? ", " + to_string(pos) : "") + ")");
+	int error(const string& msg) {
+		throw runtime_error(msg + " (line " + to_string(lpos + 1) + ", " + to_string(pos) + ")");
+	}
+	int warn(const string& msg) {
+		return printf("Warning: %s (line %d, %d)\n", msg.c_str(), (int)lpos + 1, (int)pos), 0;
 	}
 
 	// --- Runtime State ---
