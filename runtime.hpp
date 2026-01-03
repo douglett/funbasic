@@ -103,10 +103,14 @@ struct Runtime : TokenHelpers {
 			switch (var.type) {
 				case Memory::NUM:
 					if      (op ==  "=")  var.num  = arg.num;
+					// maths
 					else if (op == "+=")  var.num += arg.num;
 					else if (op == "-=")  var.num -= arg.num;
 					else if (op == "*=")  var.num *= arg.num;
 					else if (op == "/=")  var.num /= arg.num;
+					// comparison
+					else if (op == "==")  var.num = var.num == arg.num;
+					else if (op == "!=")  var.num = var.num != arg.num;
 					else    error("operator invalid on number");
 					break;
 				case Memory::STR:
@@ -126,7 +130,7 @@ struct Runtime : TokenHelpers {
 			jumpto(label);
 		}
 		// conditional
-		else if (cmd == "if") {
+		else if (cmd == "if" || cmd == "ifn") {
 			expect("$identifier");
 			auto name = last();
 			if (getmem(name).type != Memory::NUM)
@@ -136,7 +140,9 @@ struct Runtime : TokenHelpers {
 			expect("$identifier");
 			auto label = last();
 			expect("$eol");
-			if (getmem(name).num)
+			if (cmd == "if" && getmem(name).num)
+				jumpto(label);
+			else if (cmd == "ifn" && !getmem(name).num)
 				jumpto(label);
 			else
 				lpos++;
@@ -186,7 +192,7 @@ struct Runtime : TokenHelpers {
 	}
 
 	int poperator() {
-		vector<string> operators = { "=", "+ =", "- =", "* =", "/ =" };
+		vector<string> operators = { "= =", "! =", "+ =", "- =", "* =", "/ =", "=" };
 		for (auto op : operators)
 			if (accept(op))
 				return 1;
