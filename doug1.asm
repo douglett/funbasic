@@ -7,12 +7,13 @@ module doug1
 	print "There are doors leading north(1), south(2), east(3), and west(4)."
 	print "Please pick a number to proceed: "
 	; input str
-	let dir = toint(str)
+	let dir = a
+	; let dir = toint(str)
 
-; door1:
-; 	let a = dir
-; 	let a == 1
-; 	ifn a then goto door2
+door1:
+	; let a = dir
+	; let a == 1
+	; ifn a then goto door2
 ; 		print "You open the north door... there was a bottomless pit there!"
 ; 		print "You fall into the pit and die."
 ; 		goto theend

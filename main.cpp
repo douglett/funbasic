@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 #include <fstream>
+#include <sstream>
 #include <map>
 using namespace std;
 
@@ -88,9 +89,10 @@ struct Runtime {
 		MEMTYPE type; int num; string str;
 	};
 	Tokenizer tok;
-	string modulename;
+	vector<string> lastlist;
 	size_t lpos = 0, pos = 0;
 	int flagw_modulename = 0;
+	string modulename;
 	map<string, Memory> memory;
 
 	// --- Parsing ---
@@ -113,60 +115,61 @@ struct Runtime {
 
 		// no-operation
 		if (cmd == "noop") {
-			expect("eol");
+			expect("$eol");
 			lpos++;
 		}
 		// module name
 		else if (cmd == "module") {
 			if (modulename.length())
 				error("module name redefined");
-			expect("identifier");
+			expect("$identifier");
 			modulename = last();
-			expect("eol");
+			expect("$eol");
 			lpos++;
 		}
 		// dim new variable
 		else if (cmd == "dim") {
-			expect("identifier");
+			expect("$identifier");
 			auto name = last();
-			expect("match", "=");
+			expect("=");
 			if (memory.count(name))
 				error("redim of " + name);
-			if (accept("number"))
+			if (accept("$number"))
 				memory[name] = { Memory::NUM, stoi(last()) };
-			else if (accept("string"))
+			else if (accept("$string"))
 				memory[name] = { Memory::STR, 0, stripliteral(last()) };
 			else
 				error("type error");
-			expect("eol");
+			expect("$eol");
 			lpos++;
 		}
 		// set variable
 		else if (cmd == "let") {
-			expect("identifier");
+			expect("$identifier");
 			auto& name = last();
-			if (accept("match", "=")) {
-				if (accept("number") && getmem(name).type == Memory::NUM)
+
+			if (accept("=")) {
+				if (accept("$number") && getmem(name).type == Memory::NUM)
 					getmem(name).num = stoi(last());
-				else if (accept("string") && getmem(name).type == Memory::STR)
+				else if (accept("$string") && getmem(name).type == Memory::STR)
 					getmem(name).str = stripliteral(last());
-				else if (accept("identifier") && getmem(name).type == getmem(last()).type)
+				else if (accept("$identifier") && getmem(name).type == getmem(last()).type)
 					switch (getmem(name).type) {
 						case Memory::NUM:  getmem(name).num = getmem(last()).num;  break;
 						case Memory::STR:  getmem(name).str = getmem(last()).str;  break;
 					}
 				else
 					error("type error");
-				expect("eol");
+				expect("$eol");
 				lpos++;
 			}
-			else if (accept("match", "+") || accept("match", "-") || accept("match", "*") || accept("match", "/")) {
+			else if (accept("+") || accept("-") || accept("*") || accept("/")) {
 				auto& op = last();
-				expect("match", "=");
+				expect("=");
 				int num = 0;
-				if (accept("number") && getmem(name).type == Memory::NUM)
+				if (accept("$number") && getmem(name).type == Memory::NUM)
 					num = stoi(last());
-				else if (accept("identifier") && getmem(name).type == Memory::NUM && getmem(last()).type == Memory::NUM)
+				else if (accept("$identifier") && getmem(name).type == Memory::NUM && getmem(last()).type == Memory::NUM)
 					num = getmem(last()).num;
 				else
 					error("type error");
@@ -174,7 +177,7 @@ struct Runtime {
 				else if (op == "-")  getmem(name).num -= num;
 				else if (op == "*")  getmem(name).num *= num;
 				else if (op == "/")  getmem(name).num /= num;
-				expect("eol");
+				expect("$eol");
 				lpos++;
 			}
 			else
@@ -182,22 +185,22 @@ struct Runtime {
 		}
 		// jump
 		else if (cmd == "goto") {
-			expect("identifier");
+			expect("$identifier");
 			auto& label = last();
-			expect("eol");
+			expect("$eol");
 			jumpto(label);
 		}
 		// conditional
 		else if (cmd == "if") {
-			expect("identifier");
+			expect("$identifier");
 			auto& name = last();
 			if (getmem(name).type != Memory::NUM)
 				error("type error");
-			expect("match", "then");
-			expect("match", "goto");
-			expect("identifier");
-			expect("eol");
+			expect("then");
+			expect("goto");
+			expect("$identifier");
 			auto& label = last();
+			expect("$eol");
 			if (getmem(name).num)
 				jumpto(label);
 			else
@@ -226,17 +229,17 @@ struct Runtime {
 		}
 		// get input from terminal
 		else if (cmd == "input") {
-			expect("identifier");
+			expect("$identifier");
 			auto& name = last();
 			if (getmem(name).type != Memory::STR)
 				error("type error");
-			expect("eol");
+			expect("$eol");
 			getline(cin, getmem(name).str);
 			lpos++;
 		}
 		// label
-		else if (isidentifier(cmd) && accept("match", ":")) {
-			expect("eol");
+		else if (isidentifier(cmd) && accept(":")) {
+			expect("$eol");
 			lpos++;  // also noop
 		}
 		// unknown
@@ -247,10 +250,10 @@ struct Runtime {
 		return 0;
 	}
 
-	int error(const string& msg) {
+	int error(const string& msg) const {
 		throw runtime_error(msg + " (line " + to_string(lpos + 1) + ", " + to_string(pos) + ")");
 	}
-	int warn(const string& msg) {
+	int warn(const string& msg) const {
 		return printf("Warning: %s (line %d, %d)\n", msg.c_str(), (int)lpos + 1, (int)pos), 0;
 	}
 
@@ -270,43 +273,60 @@ struct Runtime {
 	}
 
 	// --- Parsing Helpers ---
-	const Tokenizer::TokenLine& line() {
+	const Tokenizer::TokenLine& line() const {
 		if (lpos >= tok.lines.size())
 			error("line out-of-range");
 		return tok.lines[lpos];
 	}
-	const vector<string>& tokens() {
+	const vector<string>& tokens() const {
 		return line().tokens;
 	}
-	int expect(const string& cmd, const string& match = "") {
-		if (!accept(cmd, match))
-			error("expected " + cmd);
+	int expect(const string& cmd) {
+		if (!accept(cmd))
+			error("expected [" + cmd + "]");
 		return 1;
 	}
-	int accept(const string& cmd, const string& match = "") {
+	int accept(const string& cmd) {
 		if (pos >= tokens().size()) {
-			if (cmd == "eol")
+			if (cmd == "$eol")
 				return 1;
 			error("token out-of-range");
 		}
 		auto& tok = tokens().at(pos);
-		if (cmd == "identifier")
+		if (cmd == "$identifier")
 			return isidentifier(tok) && ++pos;
-		else if (cmd == "match")
-			return tok == match && ++pos;
-		else if (cmd == "number")
+		else if (cmd == "$number")
 			return isnumber(tok) && ++pos;
-		else if (cmd == "string")
+		else if (cmd == "$string")
 			return isstrliteral(tok) && ++pos;
-		else
-			error("unknown accept command [" + cmd + "]");
+		else if (cmd == tok)
+			return ++pos;
 		return 0;
 	}
-	const string& last() {
+	const string& last() const {
 		static const string EOL = "<eol>";
 		if (pos - 1 >= tokens().size())
 			return EOL;
 		return tokens().at(pos - 1);
+	}
+	int acceptm(const string& cmdlist) {
+		lastlist = {};
+		string cmd;
+		stringstream ss(cmdlist);
+		while (ss >> cmd) {
+			if (!accept(cmd))
+				return 0;
+			lastlist.push_back(last());
+		}
+		if (lastlist.size() == 0)
+			error("command list empty [" + cmdlist + "]");
+		return 1;
+	}
+	string lastm() const {
+		string s;
+		for (auto& tok : lastlist)
+			s += tok;
+		return s;
 	}
 
 	// --- Token Helpers ---
@@ -330,6 +350,22 @@ struct Runtime {
 		if (!isstrliteral(s))  return s;
 		return s.substr(1, s.length() - 2);
 	}
+	static vector<string> splitws(const string& str) {
+		vector<string> vs;
+		string s;
+		stringstream ss(str);
+		while (ss >> s)
+			vs.push_back(s);
+		return vs;
+	}
+	static string joinvs(const vector<string>& vs, const string& glue = " ") {
+		string str;
+		int first = 1;
+		for (auto& s : vs)
+			if (first)  str += s, first = 0;
+			else  str += glue + s; 
+		return str;
+	}
 };
 
 
@@ -337,7 +373,7 @@ int main() {
 	printf("funbasic parser online!\n\n");
 
 	Tokenizer tok;
-	tok.parsef("doug1.asm");
+	tok.parsef("maths.asm");
 	tok.show();
 	printf("\n");
 
