@@ -99,7 +99,9 @@ struct Runtime : TokenHelpers {
 					else    error("operator invalid on string");
 					break;
 				case Memory::ARR:
-					error("operator invalid on array");
+					if      (op ==  "=")  var.arr  = arg.arr;
+					else if (op == "+=")  var.arr.insert(var.arr.end(), arg.arr.begin(), arg.arr.end());
+					else    error("operator invalid on array");
 					break;
 			}
 			// end line
@@ -156,23 +158,6 @@ struct Runtime : TokenHelpers {
 			if (var.type != Memory::STR)
 				error("type error");
 			getline(cin, var.str);
-			expect("$eol");
-			lpos++;
-		}
-		// special array commands
-		else if (cmd == "push") {
-			expect("$identifier");
-			auto& var = getmem(last());
-			if (var.type != Memory::ARR)
-				error("type error");
-			accept(",");
-			auto arg = pargument();
-			if (arg.type == Memory::NUM)
-				var.arr.push_back(arg.num);
-			else if (arg.type == Memory::ARR)
-				var.arr.insert(var.arr.end(), arg.arr.begin(), arg.arr.end());
-			else
-				error("type error");
 			expect("$eol");
 			lpos++;
 		}
