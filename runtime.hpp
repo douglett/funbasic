@@ -10,8 +10,8 @@ using namespace std;
 
 struct Runtime : TokenHelpers {
 	struct Memory {
-		enum MEMTYPE { NUM = 0, STR };
-		MEMTYPE type; int num; string str;
+		enum MEMTYPE { NUM = 0, STR, ARR };
+		MEMTYPE type; int num; string str; vector<int> arr;
 	};
 	Tokenizer tok;
 	vector<string> lastlist;
@@ -54,17 +54,16 @@ struct Runtime : TokenHelpers {
 		}
 		// dim new variable
 		else if (cmd == "dim") {
+			// variable
 			expect("$identifier");
 			auto name = last();
-			expect("=");
 			if (memory.count(name))
 				error("redim of " + name);
-			if (accept("$number"))
-				memory[name] = { Memory::NUM, strtoint(last()) };
-			else if (accept("$string"))
-				memory[name] = { Memory::STR, 0, stripliteral(last()) };
-			else
-				error("type error");
+			// operator
+			expect("=");
+			// argument
+			auto arg = pargument();
+			memory[name] = arg;
 			expect("$eol");
 			lpos++;
 		}
@@ -75,28 +74,9 @@ struct Runtime : TokenHelpers {
 			auto name = last();
 			auto& var = getmem(name);
 			// operator
-			poperator();
-			auto op = last();
+			string op = poperator();
 			// argument
-			Memory arg;
-			if (accept("$number"))
-				arg = { Memory::NUM, strtoint(last()) };
-			else if (accept("$string"))
-				arg = { Memory::STR, 0, stripliteral(last()) };
-			else if (accept("$identifier (")) {
-				auto conversion = last(0);
-				expect("$identifier");
-				auto var2 = getmem(last());
-				expect(")");
-				if (conversion == "toint" && var2.type == Memory::STR)
-					arg = { Memory::NUM, strtoint(var2.str, 0) };
-				else
-					error("bad conversion"); 
-			}
-			else if (accept("$identifier"))
-				arg = getmem(last());
-			else
-				error("expected argument");
+			Memory arg = pargument();
 			if (var.type != arg.type)
 				error("type error");
 			// operation
@@ -116,6 +96,9 @@ struct Runtime : TokenHelpers {
 				case Memory::STR:
 					if   (op == "=")  var.str = arg.str;
 					else error("operator invalid on string");
+					break;
+				case Memory::ARR:
+					error("operator invalid on array");
 					break;
 			}
 			// end line
@@ -157,10 +140,7 @@ struct Runtime : TokenHelpers {
 					printf("%s ", stripliteral(tok).c_str());
 				else if (isidentifier(tok)) {
 					auto& var = getmem(tok);
-					switch (var.type) {
-						case Memory::NUM:  printf("%d ", var.num);  break;
-						case Memory::STR:  printf("%s ", var.str.c_str());  break;
-					}
+					printf("%s ", memtostr(var).c_str());
 				}
 				else
 					error("bad argument");
@@ -191,19 +171,55 @@ struct Runtime : TokenHelpers {
 		return 0;
 	}
 
-	int poperator() {
+	string poperator() {
 		vector<string> operators = { "= =", "! =", "+ =", "- =", "* =", "/ =", "=" };
 		for (auto op : operators)
 			if (accept(op))
-				return 1;
-		return error("expected operator");
+				return op;
+		error("expected operator");
+		return "";
+	}
+
+	Memory pargument() {
+		Memory arg;
+		if (accept("$number"))
+			arg = { Memory::NUM, strtoint(last()) };
+		else if (accept("$string"))
+			arg = { Memory::STR, 0, stripliteral(last()) };
+		else if (accept("$identifier (")) {
+			auto conversion = last(0);
+			expect("$identifier");
+			auto var2 = getmem(last());
+			expect(")");
+			if (conversion == "toint" && var2.type == Memory::STR)
+				arg = { Memory::NUM, strtoint(var2.str, 0) };
+			else
+				error("bad conversion"); 
+		}
+		else if (accept("$identifier"))
+			arg = getmem(last());
+		else if (accept("[")) {
+			arg = { Memory::ARR, 0, "", {} };
+			while (!accept("]")) {
+				if (accept("$eol"))
+					error("unterminated array");
+				Memory arg2 = pargument();
+				if (arg2.type != Memory::NUM)
+					error("type error");
+				accept(",");  // commas optional
+				arg.arr.push_back(arg2.num);
+			}
+		}
+		else
+			error("expected argument");
+		return arg;
 	}
 
 	int error(const string& msg) const {
-		throw runtime_error(msg + " (line " + to_string(lpos + 1) + ", " + to_string(pos) + ")");
+		throw runtime_error(msg + " (line " + to_string(lpos + 1) + ", " + to_string(pos + 1) + ")");
 	}
 	int warn(const string& msg) const {
-		return printf("Warning: %s (line %d, %d)\n", msg.c_str(), (int)lpos + 1, (int)pos), 0;
+		return printf("Warning: %s (line %d, %d)\n", msg.c_str(), int(lpos + 1), int(pos + 1)), 0;
 	}
 
 	// --- Runtime State ---
@@ -240,10 +256,11 @@ struct Runtime : TokenHelpers {
 	}
 	string memtostr(const Memory& mem) {
 		switch (mem.type) {
-			case Memory::STR:  return mem.str;
-			default:
 			case Memory::NUM:  return to_string(mem.num);
+			case Memory::STR:  return mem.str;
+			case Memory::ARR:  return "array(" + to_string(mem.arr.size()) + ")";
 		}
+		return error("memtostr, unknown type"), "";
 	}
 	int expect(const string& cmd) {
 		if (!accept(cmd))
