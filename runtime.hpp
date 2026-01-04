@@ -62,7 +62,7 @@ struct Runtime : TokenHelpers {
 			// operator
 			expect("=");
 			// argument
-			auto arg = pargument();
+			auto arg = pvalue();
 			memory[name] = arg;
 			expect("$eol");
 			lpos++;
@@ -76,7 +76,7 @@ struct Runtime : TokenHelpers {
 			// operator
 			string op = poperator();
 			// argument
-			Memory arg = pargument();
+			Memory arg = pvalue();
 			if (var.type != arg.type)
 				error("type error");
 			// operation
@@ -161,6 +161,46 @@ struct Runtime : TokenHelpers {
 			expect("$eol");
 			lpos++;
 		}
+		// sprite 
+		else if (cmd == "sprreg" || cmd == "sprdereg") {
+			auto val = pvalue();
+			expect("$eol");
+			lpos++;
+		}
+		// pop
+		else if (cmd == "pop") {
+			expect("$identifier");
+			auto& var = getmem(last());
+			expect("=");
+			// array
+			expect("$identifier");
+			auto& arr = getmem(last());
+			if (arr.type != Memory::ARR)
+				error("type error");
+			// 1 argument - pop to int
+			if (accept("$eol")) {
+				if (var.type != Memory::NUM)
+					error("type error");
+				if (arr.arr.size() == 0)
+					error("pop from empty array");
+				var.num = arr.arr.back();
+				arr.arr.pop_back();
+			}
+			// 2 arguments - pop to array
+			else {
+				accept(",");
+				if (var.type != Memory::ARR)
+					error("type error");
+				auto count = pvalue();
+				if (count.type != Memory::NUM || count.num >= (int)arr.arr.size())
+					error("bad argument");
+				var.arr = {};
+				var.arr.insert(var.arr.end(), arr.arr.end() - count.num, arr.arr.end());
+				arr.arr.erase(arr.arr.end() - count.num, arr.arr.end());
+			}
+			expect("$eol");
+			lpos++;
+		}
 		// label
 		else if (isidentifier(cmd) && accept(":")) {
 			expect("$eol");
@@ -183,22 +223,22 @@ struct Runtime : TokenHelpers {
 		return "";
 	}
 
-	Memory pargument() {
+	Memory pvalue() {
 		Memory arg;
 		if (accept("$number"))
 			arg = { Memory::NUM, strtoint(last()) };
 		else if (accept("$string"))
 			arg = { Memory::STR, 0, stripliteral(last()) };
-		else if (accept("$identifier (")) {
-			auto conversion = last(0);
-			expect("$identifier");
-			auto var2 = getmem(last());
-			expect(")");
-			if (conversion == "toint" && var2.type == Memory::STR)
-				arg = { Memory::NUM, strtoint(var2.str, 0) };
-			else
-				error("bad conversion"); 
-		}
+		// else if (accept("$identifier (")) {
+		// 	auto conversion = last(0);
+		// 	expect("$identifier");
+		// 	auto var2 = getmem(last());
+		// 	expect(")");
+		// 	if (conversion == "toint" && var2.type == Memory::STR)
+		// 		arg = { Memory::NUM, strtoint(var2.str, 0) };
+		// 	else
+		// 		error("bad conversion"); 
+		// }
 		else if (accept("$identifier"))
 			arg = getmem(last());
 		else if (accept("[")) {
@@ -206,7 +246,7 @@ struct Runtime : TokenHelpers {
 			while (!accept("]")) {
 				if (accept("$eol"))
 					error("unterminated array");
-				Memory arg2 = pargument();
+				Memory arg2 = pvalue();
 				if (arg2.type != Memory::NUM)
 					error("type error");
 				accept(",");  // commas optional
