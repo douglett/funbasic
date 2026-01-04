@@ -94,8 +94,9 @@ struct Runtime : TokenHelpers {
 					else    error("operator invalid on number");
 					break;
 				case Memory::STR:
-					if   (op == "=")  var.str = arg.str;
-					else error("operator invalid on string");
+					if      (op ==  "=")  var.str  = arg.str;
+					else if (op == "+=")  var.str += arg.str;
+					else    error("operator invalid on string");
 					break;
 				case Memory::ARR:
 					error("operator invalid on array");
@@ -192,7 +193,7 @@ struct Runtime : TokenHelpers {
 		vector<string> operators = { "= =", "! =", "+ =", "- =", "* =", "/ =", "=" };
 		for (auto op : operators)
 			if (accept(op))
-				return op;
+				return last();
 		error("expected operator");
 		return "";
 	}
