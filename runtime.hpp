@@ -151,11 +151,28 @@ struct Runtime : TokenHelpers {
 		// get input from terminal
 		else if (cmd == "input") {
 			expect("$identifier");
-			auto name = last();
-			if (getmem(name).type != Memory::STR)
+			auto& var = getmem(last());
+			if (var.type != Memory::STR)
+				error("type error");
+			getline(cin, var.str);
+			expect("$eol");
+			lpos++;
+		}
+		// special array commands
+		else if (cmd == "push") {
+			expect("$identifier");
+			auto& var = getmem(last());
+			if (var.type != Memory::ARR)
+				error("type error");
+			accept(",");
+			auto arg = pargument();
+			if (arg.type == Memory::NUM)
+				var.arr.push_back(arg.num);
+			else if (arg.type == Memory::ARR)
+				var.arr.insert(var.arr.end(), arg.arr.begin(), arg.arr.end());
+			else
 				error("type error");
 			expect("$eol");
-			getline(cin, getmem(name).str);
 			lpos++;
 		}
 		// label
