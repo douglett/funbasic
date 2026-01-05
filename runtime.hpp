@@ -169,9 +169,10 @@ struct Runtime : TokenHelpers {
 		}
 		// pop
 		else if (cmd == "pop") {
-			expect("$identifier");
-			auto& var = getmem(last());
-			expect("=");
+			// assign result (optional)
+			Memory* var = NULL;
+			if (accept("$identifier ="))
+				var = &getmem(last(0));
 			// array
 			expect("$identifier");
 			auto& arr = getmem(last());
@@ -179,23 +180,27 @@ struct Runtime : TokenHelpers {
 				error("type error");
 			// 1 argument - pop to int
 			if (accept("$eol")) {
-				if (var.type != Memory::NUM)
-					error("type error");
 				if (arr.arr.size() == 0)
 					error("pop from empty array");
-				var.num = arr.arr.back();
+				if (var) {
+					if (var->type != Memory::NUM)
+						error("type error");
+					var->num = arr.arr.back();
+				}
 				arr.arr.pop_back();
 			}
 			// 2 arguments - pop to array
 			else {
 				accept(",");
-				if (var.type != Memory::ARR)
-					error("type error");
 				auto count = pvalue();
-				if (count.type != Memory::NUM || count.num >= (int)arr.arr.size())
+				if (count.type != Memory::NUM || count.num < 1 || count.num > (int)arr.arr.size())
 					error("bad argument");
-				var.arr = {};
-				var.arr.insert(var.arr.end(), arr.arr.end() - count.num, arr.arr.end());
+				if (var) {
+					if (var->type != Memory::ARR)
+						error("type error");
+					var->arr = {};
+					var->arr.insert(var->arr.end(), arr.arr.end() - count.num, arr.arr.end());
+				}
 				arr.arr.erase(arr.arr.end() - count.num, arr.arr.end());
 			}
 			expect("$eol");

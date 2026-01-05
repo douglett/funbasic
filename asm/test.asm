@@ -25,3 +25,7 @@ module test
 	dim t = []
 	pop t = c, 2
 	print c
+
+	pop c
+	pop c, 2
+	print c
