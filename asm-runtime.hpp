@@ -98,11 +98,9 @@ struct AsmRuntime : TokenHelpers {
 		}
 		// print commands
 		else if (cmd == "print" || cmd == "println") {
-			if      (accept("int")) cout << getint(topst());
-			else if (accept("str")) cout << getstr(topst());
-			else    error("expected type after print");
-			if      (cmd == "print")   cout << ' ';
-			else if (cmd == "println") cout << '\n';
+			expect("$eol");
+			if      (cmd == "print")   printf("%s ",  memtostr(topst()).c_str());
+			else if (cmd == "println") printf("%s\n", memtostr(topst()).c_str());
 			lpos++;
 		}
 		// unknown
@@ -176,14 +174,14 @@ struct AsmRuntime : TokenHelpers {
 		try { return stoi(str); }
 		catch (invalid_argument& e) { return defaultnum; }
 	}
-	// string memtostr(const Memory& mem) {
-	// 	switch (mem.type) {
-	// 		case Memory::NUM:  return to_string(mem.num);
-	// 		case Memory::STR:  return mem.str;
-	// 		case Memory::ARR:  return "array(" + to_string(mem.arr.size()) + ")";
-	// 	}
-	// 	return error("memtostr, unknown type"), "";
-	// }
+	string memtostr(Memptr p) {
+		switch (p->type) {
+			case Memory::NUM:  return to_string(p->num);
+			case Memory::STR:  return p->str;
+			case Memory::ARR:  return "array(" + to_string(p->arr.size()) + ")";
+		}
+		return error("memtostr, unknown type"), "";
+	}
 	int expect(const string& cmd) {
 		if (!accept(cmd))
 			error("expected [" + cmd + "]");

@@ -5,11 +5,11 @@ module test
 	int 12
 	add
 	dup
-	println int
+	println
 	int 2
 	sub
-	println int
+	println
 
 	; strings
 	str "hello world"
-	println str
+	println
