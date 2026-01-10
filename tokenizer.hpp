@@ -62,7 +62,8 @@ struct Tokenizer : TokenHelpers {
 		for (size_t i = 0; i < lines.size(); i++) {
 			auto& line   = lines[i];
 			auto& tokens = line.tokens;
-			printf("%02d  %02d  ", (int)i+1, (int)tokens.size());
+			// printf("%02d  (%02d)  ", (int)i+1, (int)tokens.size());
+			printf("%02d  ", (int)i+1);
 			for (auto& tok : tokens)
 				printf("%s ", tok.c_str());
 			printf("%s\n", line.comment.c_str());

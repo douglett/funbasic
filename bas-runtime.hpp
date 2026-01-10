@@ -8,7 +8,7 @@
 using namespace std;
 
 
-struct Runtime : TokenHelpers {
+struct BasRuntime : TokenHelpers {
 	struct Memory {
 		enum MEMTYPE { NUM = 0, STR, ARR };
 		MEMTYPE type; int num; string str; vector<int> arr;
