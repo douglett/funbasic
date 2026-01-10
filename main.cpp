@@ -5,7 +5,7 @@ using namespace std;
 
 
 int main() {
-	printf("funbasic parser online!\n\n");
+	printf("fun-asm parser online!\n\n");
 
 	Tokenizer tok;
 	tok.parsef("asm-asm/test.asm");

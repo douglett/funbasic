@@ -4,6 +4,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <memory>
 #include <map>
 using namespace std;
 
@@ -16,10 +17,13 @@ struct AsmRuntime : TokenHelpers {
 	int flagw_modulename = 0;
 	// runtime
 	string modulename;
-	// struct Memory {
-	// 	enum MEMTYPE { NUM = 0, STR, ARR };
-	// 	MEMTYPE type; int num; string str; vector<int> arr;
-	// };
+	struct Memory {
+		typedef shared_ptr<Memory> Memptr;
+		enum MEMTYPE { NUM = 0, STR, ARR };
+		MEMTYPE type; int num; string str; vector<int> arr;
+	};
+	typedef Memory::Memptr Memptr;
+	vector<Memptr> stack;
 	// map<string, Memory> memory;
 
 	// --- Parsing ---
@@ -30,9 +34,15 @@ struct AsmRuntime : TokenHelpers {
 		return 0;
 	}
 
+	int error(const string& msg) const {
+		throw runtime_error(msg + " (line " + to_string(lpos + 1) + ", " + to_string(pos + 1) + ")");
+	}
+	int warn(const string& msg) const {
+		return printf("Warning: %s (line %d, %d)\n", msg.c_str(), int(lpos + 1), int(pos + 1)), 0;
+	}
+
 	int runline() {
 		string cmd = tokens().size() ? tokens()[0] : "noop";
-		string errormsg;
 		pos = 1;
 
 		if (cmd != "noop" && cmd != "module" && modulename.size() == 0 && !flagw_modulename) {
@@ -49,9 +59,50 @@ struct AsmRuntime : TokenHelpers {
 		else if (cmd == "module") {
 			if (modulename.length())
 				error("module name redefined");
-			expect("$identifier");
-			modulename = last();
+			expect("$identifier $eol");
+			modulename = last(0);
+			lpos++;
+		}
+		// stack integer
+		else if (cmd == "int") {
+			expect("$number $eol");
+			int i = strtoint(last(0));
+			pushst(makeint(i));
+			lpos++;
+		}
+		// stack string
+		else if (cmd == "str") {
+			expect("$string $eol");
+			string s = stripliteral(last(0));
+			pushst(makestr(s));
+			lpos++;
+		}
+		// stack duplicate top
+		else if (cmd == "dup") {
 			expect("$eol");
+			pushst(topst());
+			lpos++;
+		}
+		// integer maths
+		else if (cmd == "add" || cmd == "sub" || cmd == "mul" || cmd == "div") {
+			expect("$eol");
+			int a = getint(popst());
+			int b = getint(popst());
+			int i = 0;
+			if      (cmd == "add")  i = b + a;
+			else if (cmd == "sub")  i = b - a;
+			else if (cmd == "mul")  i = b * a;
+			else if (cmd == "div")  i = b / a;
+			pushst(makeint(i));
+			lpos++;
+		}
+		// print commands
+		else if (cmd == "print" || cmd == "println") {
+			if      (accept("int")) cout << getint(topst());
+			else if (accept("str")) cout << getstr(topst());
+			else    error("expected type after print");
+			if      (cmd == "print")   cout << ' ';
+			else if (cmd == "println") cout << '\n';
 			lpos++;
 		}
 		// unknown
@@ -62,14 +113,43 @@ struct AsmRuntime : TokenHelpers {
 		return 0;
 	}
 
-	int error(const string& msg) const {
-		throw runtime_error(msg + " (line " + to_string(lpos + 1) + ", " + to_string(pos + 1) + ")");
-	}
-	int warn(const string& msg) const {
-		return printf("Warning: %s (line %d, %d)\n", msg.c_str(), int(lpos + 1), int(pos + 1)), 0;
-	}
-
 	// --- Runtime State ---
+	static Memptr makeint(int num) {
+		auto p = make_shared<Memory>();
+		*p = { Memory::NUM, num };
+		return p;
+	}
+	static Memptr makestr(const string& str) {
+		auto p = make_shared<Memory>();
+		*p = { Memory::STR, 0, str };
+		return p;
+	}
+	int getint(Memptr p) {
+		if (p->type != Memory::NUM)
+			error("expected int");
+		return p->num;
+	}
+	string& getstr(Memptr p) {
+		if (p->type != Memory::STR)
+			error("expected string");
+		return p->str;
+	}
+	Memptr pushst(Memptr p) {
+		stack.push_back(p);
+		return p;
+	}
+	Memptr popst() {
+		if (stack.size() == 0)
+			error("pop from empty stack");
+		auto p = stack.back();
+		stack.pop_back();
+		return p;
+	}
+	Memptr topst() {
+		if (stack.size() == 0)
+			error("top from empty stack");
+		return stack.back();
+	}
 	int jumpto(const string& label) {
 		for (size_t i = 0; i < tok.lines.size(); i++) {
 			auto& tokens = tok.lines[i].tokens;
