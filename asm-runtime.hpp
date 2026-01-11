@@ -24,7 +24,7 @@ struct AsmRuntime : TokenHelpers {
 	};
 	typedef Memory::Memptr Memptr;
 	vector<Memptr> stack;
-	// map<string, Memory> memory;
+	map<string, Memptr> variables;
 
 	// --- Parsing ---
 	int run() {
@@ -101,6 +101,37 @@ struct AsmRuntime : TokenHelpers {
 			expect("$eol");
 			if      (cmd == "print")   printf("%s ",  memtostr(topst()).c_str());
 			else if (cmd == "println") printf("%s\n", memtostr(topst()).c_str());
+			lpos++;
+		}
+		// DIMension - create variable
+		else if (cmd == "dim") {
+			expect("$identifier");
+			auto name = last();
+			if (variables.count(name))
+				error("variable redefinition");
+			if      (accept("$number")) variables[name] = makeint(strtoint(last()));
+			else if (accept("$string")) variables[name] = makestr(stripliteral(last()));
+			else    error("expected default");
+			expect("$eol");
+			lpos++;
+		}
+		// get variable
+		else if (cmd == "get") {
+			expect("$identifier $eol");
+			auto name = last(0);
+			if (!variables.count(name))
+				error("missing variable");
+			pushst(variables.at(name));
+			lpos++;
+		}
+		else if (cmd == "set") {
+			expect("$identifier $eol");
+			auto name = last(0);
+			if (!variables.count(name))
+				error("missing variable");
+			if (variables.at(name)->type != topst()->type)
+				error("type mismatch");
+			variables.at(name) = popst();
 			lpos++;
 		}
 		// unknown
