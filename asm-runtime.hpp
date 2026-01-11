@@ -25,8 +25,8 @@ struct AsmRuntime : TokenHelpers {
 	typedef Memory::Memptr Memptr;
 	vector<Memptr> stack;
 	struct Frame {
-		map<string, Memptr> variables;
 		size_t returnpos;
+		map<string, Memptr> variables;
 	};
 	Frame global;
 	vector<Frame> framestack;
@@ -35,7 +35,8 @@ struct AsmRuntime : TokenHelpers {
 	int run() {
 		lpos = 0;
 		while (lpos < tok.lines.size())
-			runline();
+			if (runline())
+				break;
 		return 0;
 	}
 
@@ -58,7 +59,6 @@ struct AsmRuntime : TokenHelpers {
 		// no-operation
 		if (cmd == "noop") {
 			expect("$eol");
-			lpos++;
 		}
 		// module name
 		else if (cmd == "module") {
@@ -66,27 +66,23 @@ struct AsmRuntime : TokenHelpers {
 				error("module name redefined");
 			expect("$identifier $eol");
 			modulename = last(0);
-			lpos++;
 		}
 		// stack integer
 		else if (cmd == "int") {
 			expect("$number $eol");
 			int i = strtoint(last(0));
 			pushst(makeint(i));
-			lpos++;
 		}
 		// stack string
 		else if (cmd == "str") {
 			expect("$string $eol");
 			string s = stripliteral(last(0));
 			pushst(makestr(s));
-			lpos++;
 		}
 		// stack duplicate top
 		else if (cmd == "dup") {
 			expect("$eol");
 			pushst(topst());
-			lpos++;
 		}
 		// integer maths
 		else if (cmd == "add" || cmd == "sub" || cmd == "mul" || cmd == "div") {
@@ -99,14 +95,12 @@ struct AsmRuntime : TokenHelpers {
 			else if (cmd == "mul")  i = b * a;
 			else if (cmd == "div")  i = b / a;
 			pushst(makeint(i));
-			lpos++;
 		}
 		// print commands
 		else if (cmd == "print" || cmd == "println") {
 			expect("$eol");
 			if      (cmd == "print")   printf("%s ",  memtostr(topst()).c_str());
 			else if (cmd == "println") printf("%s\n", memtostr(topst()).c_str());
-			lpos++;
 		}
 		// DIMension - create variable
 		else if (cmd == "dim") {
@@ -120,7 +114,6 @@ struct AsmRuntime : TokenHelpers {
 			else if (accept("$string")) frame.variables[name] = makestr(stripliteral(last()));
 			else    error("expected default");
 			expect("$eol");
-			lpos++;
 		}
 		// get variable
 		else if (cmd == "get") {
@@ -131,8 +124,8 @@ struct AsmRuntime : TokenHelpers {
 			if (!frame.variables.count(name))
 				error("missing variable");
 			pushst(frame.variables.at(name));
-			lpos++;
 		}
+		// set variable
 		else if (cmd == "set") {
 			int local = accept("$");
 			expect("$identifier $eol");
@@ -143,13 +136,38 @@ struct AsmRuntime : TokenHelpers {
 			if (frame.variables.at(name)->type != topst()->type)
 				error("type mismatch");
 			frame.variables.at(name) = popst();
-			lpos++;
+		}
+		// jump to position
+		else if (cmd == "jmp") {
+			expect("$identifier $eol");
+			lpos = labelpos(last(0));
+		}
+		// call function - push stack frame & jump
+		else if (cmd == "call") {
+			expect("$identifier $eol");
+			framestack.push_back({ lpos });
+			lpos = labelpos(last(0));
+		}
+		// return function - drop stack frame & jump
+		else if (cmd == "ret") {
+			expect("$eol");
+			lpos = getframe(1).returnpos;
+			framestack.pop_back();
+		}
+		else if (cmd == "yield") {
+			expect("$eol");
+			return lpos++, 1;
+		}
+		// label
+		else if (isidentifier(cmd) && accept(":")) {
+			expect("$eol");
 		}
 		// unknown
 		else
 			error("unknown command [" + cmd + "]");
 
 		// OK
+		lpos++;
 		return 0;
 	}
 
@@ -197,13 +215,13 @@ struct AsmRuntime : TokenHelpers {
 			error("framestack is empty");
 		return framestack.back();
 	}
-	int jumpto(const string& label) {
+	int labelpos(const string& label) {
 		for (size_t i = 0; i < tok.lines.size(); i++) {
 			auto& tokens = tok.lines[i].tokens;
 			if (tokens.size() == 2 && tokens.at(0) == label && tokens.at(1) == ":")
-				return lpos = i;
+				return i;
 		}
-		return error("goto unknown label: [" + label + "]");
+		return error("unknown label: [" + label + "]");
 	}
 
 	// --- Parsing Helpers ---
