@@ -24,7 +24,12 @@ struct AsmRuntime : TokenHelpers {
 	};
 	typedef Memory::Memptr Memptr;
 	vector<Memptr> stack;
-	map<string, Memptr> variables;
+	struct Frame {
+		map<string, Memptr> variables;
+		size_t returnpos;
+	};
+	Frame global;
+	vector<Frame> framestack;
 
 	// --- Parsing ---
 	int run() {
@@ -105,33 +110,39 @@ struct AsmRuntime : TokenHelpers {
 		}
 		// DIMension - create variable
 		else if (cmd == "dim") {
+			int local = accept("$");
 			expect("$identifier");
 			auto name = last();
-			if (variables.count(name))
+			auto& frame = getframe(local);
+			if (frame.variables.count(name))
 				error("variable redefinition");
-			if      (accept("$number")) variables[name] = makeint(strtoint(last()));
-			else if (accept("$string")) variables[name] = makestr(stripliteral(last()));
+			if      (accept("$number")) frame.variables[name] = makeint(strtoint(last()));
+			else if (accept("$string")) frame.variables[name] = makestr(stripliteral(last()));
 			else    error("expected default");
 			expect("$eol");
 			lpos++;
 		}
 		// get variable
 		else if (cmd == "get") {
+			int local = accept("$");
 			expect("$identifier $eol");
 			auto name = last(0);
-			if (!variables.count(name))
+			auto& frame = getframe(local);
+			if (!frame.variables.count(name))
 				error("missing variable");
-			pushst(variables.at(name));
+			pushst(frame.variables.at(name));
 			lpos++;
 		}
 		else if (cmd == "set") {
+			int local = accept("$");
 			expect("$identifier $eol");
 			auto name = last(0);
-			if (!variables.count(name))
+			auto& frame = getframe(local);
+			if (!frame.variables.count(name))
 				error("missing variable");
-			if (variables.at(name)->type != topst()->type)
+			if (frame.variables.at(name)->type != topst()->type)
 				error("type mismatch");
-			variables.at(name) = popst();
+			frame.variables.at(name) = popst();
 			lpos++;
 		}
 		// unknown
@@ -178,6 +189,13 @@ struct AsmRuntime : TokenHelpers {
 		if (stack.size() == 0)
 			error("top from empty stack");
 		return stack.back();
+	}
+	Frame& getframe(int local = 0) {
+		if (!local)
+			return global;
+		if (framestack.size() == 0)
+			error("framestack is empty");
+		return framestack.back();
 	}
 	int jumpto(const string& label) {
 		for (size_t i = 0; i < tok.lines.size(); i++) {
