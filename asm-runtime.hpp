@@ -93,6 +93,7 @@ struct AsmRuntime : TokenHelpers {
 			if      (cmd == "add")  i = b + a;
 			else if (cmd == "sub")  i = b - a;
 			else if (cmd == "mul")  i = b * a;
+			else if (cmd == "div" && a == 0)  error("division by zero");
 			else if (cmd == "div")  i = b / a;
 			pushst(makeint(i));
 		}
