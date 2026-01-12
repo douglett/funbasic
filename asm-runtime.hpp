@@ -119,25 +119,18 @@ struct AsmRuntime : TokenHelpers {
 		}
 		// get variable
 		else if (cmd == "get") {
-			int local = accept("$");
-			expect("$identifier $eol");
-			auto name = last(0);
-			auto& frame = getframe(local);
-			if (!frame.variables.count(name))
-				error("missing variable");
-			pushst(frame.variables.at(name));
+			accept("$ $identifier") || expect("$identifier");
+			auto name = last();
+			expect("$eol");
+			pushst(getvar(name));
 		}
 		// set variable
 		else if (cmd == "set") {
-			int local = accept("$");
-			expect("$identifier $eol");
-			auto name = last(0);
-			auto& frame = getframe(local);
-			if (!frame.variables.count(name))
-				error("missing variable");
-			if (frame.variables.at(name)->type != topst()->type)
-				error("type mismatch");
-			frame.variables.at(name) = popst();
+			accept("$ $identifier") || expect("$identifier");
+			auto name = last();
+			expect("$eol");
+			auto& p = getvar(name);
+			p = popst(p->type);
 		}
 		// jump to position
 		else if (cmd == "jmp") {
@@ -255,6 +248,15 @@ struct AsmRuntime : TokenHelpers {
 		if (framestack.size() == 0)
 			error("framestack is empty");
 		return framestack.back();
+	}
+	Memptr& getvar(string name) {
+		int local = 0;
+		if (name.length() && name.at(0) == '$')
+			name = name.substr(1), local = 1;
+		auto& frame = getframe(local);
+		if (!frame.variables.count(name))
+			error("missing variable");
+		return frame.variables.at(name);
 	}
 	int labelpos(const string& label) {
 		for (size_t i = 0; i < tok.lines.size(); i++) {
