@@ -84,6 +84,11 @@ struct AsmRuntime : TokenHelpers {
 			expect("$eol");
 			pushst(topst());
 		}
+		// drop top from stack
+		else if (cmd == "drop") {
+			expect("$eol");
+			popst();
+		}
 		// integer maths
 		else if (cmd == "add" || cmd == "sub" || cmd == "mul" || cmd == "div") {
 			expect("$eol");
@@ -210,16 +215,6 @@ struct AsmRuntime : TokenHelpers {
 		*p = { Memory::ARR };
 		return p;
 	}
-	// int getint(Memptr p) {
-	// 	if (p->type != Memory::NUM)
-	// 		error("expected int");
-	// 	return p->num;
-	// }
-	// string& getstr(Memptr p) {
-	// 	if (p->type != Memory::STR)
-	// 		error("expected string");
-	// 	return p->str;
-	// }
 	Memptr pushst(Memptr p) {
 		stack.push_back(p);
 		return p;
