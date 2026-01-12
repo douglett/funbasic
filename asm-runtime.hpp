@@ -87,8 +87,8 @@ struct AsmRuntime : TokenHelpers {
 		// integer maths
 		else if (cmd == "add" || cmd == "sub" || cmd == "mul" || cmd == "div") {
 			expect("$eol");
-			int a = getint(popst());
-			int b = getint(popst());
+			int a = popst(Memory::NUM)->num;
+			int b = popst(Memory::NUM)->num;
 			int i = 0;
 			if      (cmd == "add")  i = b + a;
 			else if (cmd == "sub")  i = b - a;
@@ -160,23 +160,28 @@ struct AsmRuntime : TokenHelpers {
 		else if (cmd == "push") {
 			expect("$eol");
 			auto valp = popst();
-			auto arrp = popst();
-			if (arrp->type != Memory::ARR)
-				error("expected array");
-			if (arrp->arr.size() > 0 && arrp->arr[0]->type != valp->type)
+			auto arrp = popst(Memory::ARR);
+			if (arrp->arr.size() > 0 && arrp->arr.at(0)->type != valp->type)
 				error("type mismatch in array");
 			arrp->arr.push_back(valp);
+		}
+		// pop from array to stack top
+		else if (cmd == "pop") {
+			expect("$eol");
+			auto arrp = popst(Memory::ARR);
+			if (arrp->arr.size() == 0)
+				error("pop from empty array");
+			pushst(arrp->arr.back());
+			arrp->arr.pop_back();
 		}
 		// array index
 		else if (cmd == "indx") {
 			expect("$eol");
-			auto valp = popst();
-			auto arrp = popst();
-			if (arrp->type != Memory::ARR || valp->type != Memory::NUM)
-				error("expected array, int");
-			if (valp->num < 0 || (size_t)valp->num >= arrp->arr.size())
+			auto idxp = popst(Memory::NUM);
+			auto arrp = popst(Memory::ARR);
+			if (idxp->num < 0 || (size_t)idxp->num >= arrp->arr.size())
 				error("index out of range");
-			pushst(arrp->arr.at(valp->num));
+			pushst(arrp->arr.at(idxp->num));
 		}
 		// yield to sheduler (rest)
 		else if (cmd == "yield") {
@@ -212,16 +217,16 @@ struct AsmRuntime : TokenHelpers {
 		*p = { Memory::ARR };
 		return p;
 	}
-	int getint(Memptr p) {
-		if (p->type != Memory::NUM)
-			error("expected int");
-		return p->num;
-	}
-	string& getstr(Memptr p) {
-		if (p->type != Memory::STR)
-			error("expected string");
-		return p->str;
-	}
+	// int getint(Memptr p) {
+	// 	if (p->type != Memory::NUM)
+	// 		error("expected int");
+	// 	return p->num;
+	// }
+	// string& getstr(Memptr p) {
+	// 	if (p->type != Memory::STR)
+	// 		error("expected string");
+	// 	return p->str;
+	// }
 	Memptr pushst(Memptr p) {
 		stack.push_back(p);
 		return p;
@@ -231,6 +236,12 @@ struct AsmRuntime : TokenHelpers {
 			error("pop from empty stack");
 		auto p = stack.back();
 		stack.pop_back();
+		return p;
+	}
+	Memptr popst(Memory::MEMTYPE type) {
+		auto p = popst();
+		if (p->type != type)
+			error("type mismatch");
 		return p;
 	}
 	Memptr topst() {
