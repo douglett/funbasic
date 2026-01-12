@@ -19,8 +19,8 @@ struct AsmRuntime : TokenHelpers {
 	string modulename;
 	struct Memory {
 		typedef shared_ptr<Memory> Memptr;
-		enum MEMTYPE { NUM = 0, STR, ARR };
-		MEMTYPE type; int num; string str; vector<Memptr> arr;
+		enum MEMTYPE { NUM = 0, STR, ARR, TBL };
+		MEMTYPE type; int num; string str; vector<Memptr> arr; map<string, Memptr> tbl;
 	};
 	typedef Memory::Memptr Memptr;
 	vector<Memptr> stack;
@@ -119,6 +119,7 @@ struct AsmRuntime : TokenHelpers {
 			if      (accept("$number")) frame.variables[name] = makeint(strtoint(last()));
 			else if (accept("$string")) frame.variables[name] = makestr(stripliteral(last()));
 			else if (accept("[ ]"))     frame.variables[name] = makearr();
+			else if (accept("{ }"))     frame.variables[name] = maketbl();
 			else    error("expected default");
 			expect("$eol");
 		}
@@ -215,6 +216,11 @@ struct AsmRuntime : TokenHelpers {
 		*p = { Memory::ARR };
 		return p;
 	}
+	static Memptr maketbl() {
+		auto p = make_shared<Memory>();
+		*p = { Memory::TBL };
+		return p;
+	}
 	Memptr pushst(Memptr p) {
 		stack.push_back(p);
 		return p;
@@ -284,6 +290,7 @@ struct AsmRuntime : TokenHelpers {
 			case Memory::NUM:  return to_string(p->num);
 			case Memory::STR:  return p->str;
 			case Memory::ARR:  return "array(" + to_string(p->arr.size()) + ")";
+			case Memory::TBL:  return "table(" + to_string(p->tbl.size()) + ")";
 		}
 		return error("memtostr, unknown type"), "";
 	}

@@ -7,11 +7,7 @@ Compile target.
 
 TODO:
 -----
-- arrays
-	- dim
-	- typing?
-	- push
-	- pop
-	- index
+- tables
 - callex system
 - setex / getex (?)
+- multiple modules
