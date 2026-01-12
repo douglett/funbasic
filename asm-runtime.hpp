@@ -182,6 +182,23 @@ struct AsmRuntime : TokenHelpers {
 				error("index out of range");
 			pushst(arrp->arr.at(idxp->num));
 		}
+		// table member
+		else if (cmd == "memb") {
+			if (accept("set $identifier $eol")) {
+				auto name = last(1);
+				auto valp = popst();
+				auto tblp = popst(Memory::TBL);
+				tblp->tbl[name] = valp;
+			}
+			else {
+				expect("$identifier $eol");
+				auto name = last(0);
+				auto tblp = popst(Memory::TBL);
+				if (!tblp->tbl.count(name))
+					error("table member not found");
+				pushst(tblp->tbl.at(name));
+			}
+		}
 		// yield to sheduler (rest)
 		else if (cmd == "yield") {
 			expect("$eol");
