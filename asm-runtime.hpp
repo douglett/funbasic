@@ -20,7 +20,7 @@ struct AsmRuntime : TokenHelpers {
 	struct Memory {
 		typedef shared_ptr<Memory> Memptr;
 		enum MEMTYPE { NUM = 0, STR, ARR };
-		MEMTYPE type; int num; string str; vector<int> arr;
+		MEMTYPE type; int num; string str; vector<Memptr> arr;
 	};
 	typedef Memory::Memptr Memptr;
 	vector<Memptr> stack;
@@ -113,6 +113,7 @@ struct AsmRuntime : TokenHelpers {
 				error("variable redefinition");
 			if      (accept("$number")) frame.variables[name] = makeint(strtoint(last()));
 			else if (accept("$string")) frame.variables[name] = makestr(stripliteral(last()));
+			else if (accept("[ ]"))     frame.variables[name] = makearr();
 			else    error("expected default");
 			expect("$eol");
 		}
@@ -155,6 +156,29 @@ struct AsmRuntime : TokenHelpers {
 			lpos = getframe(1).returnpos;
 			framestack.pop_back();
 		}
+		// push to array
+		else if (cmd == "push") {
+			expect("$eol");
+			auto valp = popst();
+			auto arrp = popst();
+			if (arrp->type != Memory::ARR)
+				error("expected array");
+			if (arrp->arr.size() > 0 && arrp->arr[0]->type != valp->type)
+				error("type mismatch in array");
+			arrp->arr.push_back(valp);
+		}
+		// array index
+		else if (cmd == "indx") {
+			expect("$eol");
+			auto valp = popst();
+			auto arrp = popst();
+			if (arrp->type != Memory::ARR || valp->type != Memory::NUM)
+				error("expected array, int");
+			if (valp->num < 0 || (size_t)valp->num >= arrp->arr.size())
+				error("index out of range");
+			pushst(arrp->arr.at(valp->num));
+		}
+		// yield to sheduler (rest)
 		else if (cmd == "yield") {
 			expect("$eol");
 			return lpos++, 1;
@@ -181,6 +205,11 @@ struct AsmRuntime : TokenHelpers {
 	static Memptr makestr(const string& str) {
 		auto p = make_shared<Memory>();
 		*p = { Memory::STR, 0, str };
+		return p;
+	}
+	static Memptr makearr() {
+		auto p = make_shared<Memory>();
+		*p = { Memory::ARR };
 		return p;
 	}
 	int getint(Memptr p) {
