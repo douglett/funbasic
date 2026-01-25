@@ -135,8 +135,9 @@ struct AsmRuntime : TokenHelpers {
 			accept("$ $identifier") || expect("$identifier");
 			auto name = last();
 			expect("$eol");
-			auto& p = getvar(name);
-			p = popst(p->type);
+			auto p = getvar(name);
+			auto v = popst(p->type);
+			*p.get() = *v.get();
 		}
 		// jump to position
 		else if (cmd == "jmp") {
@@ -267,7 +268,7 @@ struct AsmRuntime : TokenHelpers {
 			error("framestack is empty");
 		return framestack.back();
 	}
-	Memptr& getvar(string name) {
+	Memptr getvar(string name) {
 		int local = 0;
 		if (name.length() && name.at(0) == '$')
 			name = name.substr(1), local = 1;
