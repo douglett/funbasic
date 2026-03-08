@@ -7,7 +7,6 @@ Compile target.
 
 TODO:
 -----
-- tables (what to do?)
 - callex system
 	- system calls
 	- multiple runtimes

@@ -203,6 +203,11 @@ struct AsmRuntime : TokenHelpers {
 				auto tblp = popst(Memory::TBL);
 				tblp->tbl[name] = valp;
 			}
+			else if (accept("unset $identifier $eol")) {
+				auto name = last(1);
+				auto tblp = popst(Memory::TBL);
+				tblp->tbl.erase(name);
+			}
 			else {
 				expect("$identifier $eol");
 				auto name = last(0);
