@@ -103,10 +103,13 @@ struct AsmRuntime : TokenHelpers {
 			pushst(makeint(i));
 		}
 		// print commands
-		else if (cmd == "print" || cmd == "println") {
+		else if (cmd == "print") {
 			expect("$eol");
-			if      (cmd == "print")   printf("%s ",  memtostr(topst()).c_str());
-			else if (cmd == "println") printf("%s\n", memtostr(topst()).c_str());
+			printf("%s ",  memtostr(popst()).c_str());
+		}
+		else if (cmd == "println") {
+			expect("$eol");
+			printf("%s\n", memtostr(popst()).c_str());
 		}
 		// DIMension - create variable
 		else if (cmd == "dim") {
