@@ -7,8 +7,9 @@ Compile target.
 
 TODO:
 -----
-- tables
-- memory addresses!
+- tables (what to do?)
 - callex system
+	- system calls
+	- multiple runtimes
 - setex / getex (?)
 - multiple modules

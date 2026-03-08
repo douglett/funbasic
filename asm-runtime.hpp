@@ -176,12 +176,24 @@ struct AsmRuntime : TokenHelpers {
 		}
 		// array index
 		else if (cmd == "indx") {
-			expect("$eol");
-			auto idxp = popst(Memory::NUM);
-			auto arrp = popst(Memory::ARR);
-			if (idxp->num < 0 || (size_t)idxp->num >= arrp->arr.size())
-				error("index out of range");
-			pushst(arrp->arr.at(idxp->num));
+			if (accept("set $eol")) {
+				auto valp = popst();
+				auto idxp = popst(Memory::NUM);
+				auto arrp = popst(Memory::ARR);
+				if (idxp->num < 0 || (size_t)idxp->num >= arrp->arr.size())
+					error("index out of range");
+				if (arrp->arr.at(0)->type != valp->type)
+					error("type mismatch in array");
+				arrp->arr.at(idxp->num) = valp;
+			}
+			else {
+				expect("$eol");
+				auto idxp = popst(Memory::NUM);
+				auto arrp = popst(Memory::ARR);
+				if (idxp->num < 0 || (size_t)idxp->num >= arrp->arr.size())
+					error("index out of range");
+				pushst(arrp->arr.at(idxp->num));
+			}
 		}
 		// table member
 		else if (cmd == "memb") {
